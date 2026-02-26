@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FOLDER VIEWER</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0d0d;
+    --surface: #141414;
+    --border: #222;
+    --accent: #e8ff00;
+    --accent2: #ff3c6f;
+    --text: #f0f0f0;
+    --muted: #4a4a4a;
+    --header-h: 64px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  #header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: var(--header-h);
+    background: rgba(13,13,13,0.94);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 0 20px;
+    z-index: 500;
+  }
+
+  #header h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .hbar { width: 1px; height: 28px; background: var(--border); flex-shrink: 0; }
+
+  #stats {
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    line-height: 1.8;
+  }
+  #stats span { color: var(--text); }
+
+  .spacer { flex: 1; }
+
+  #filters {
+    display: flex;
+    gap: 4px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+  #filters::-webkit-scrollbar { display: none; }
+
+  .fpill {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 5px 10px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.12s;
+    white-space: nowrap;
+  }
+  .fpill:hover { border-color: var(--accent); color: var(--accent); }
+  .fpill.active { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 700; }
+
+  #col-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 80px; height: 2px;
+    background: var(--border);
+    outline: none; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px; height: 12px;
+    background: var(--accent); cursor: pointer;
+  }
+
+  button.open-btn {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 9px 18px;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    cursor: pointer;
+    white-space: nowrap;
+    clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+    transition: all 0.1s;
+    flex-shrink: 0;
+  }
+  button.open-btn:hover { background: #fff; transform: translate(-1px,-1px); box-shadow: 3px 3px 0 var(--accent); }
+  button.open-btn:active { transform: none; box-shadow: none; }
+
+  /* EMPTY STATE */
+  #empty {
+    margin-top: var(--header-h);
+    height: calc(100vh - var(--header-h));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    transition: background 0.2s;
+  }
+  #empty.drag-over { background: rgba(232,255,0,0.03); }
+
+  #empty .big {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(52px, 10vw, 130px);
+    letter-spacing: 0.05em;
+    color: var(--border);
+    line-height: 1;
+    text-align: center;
+    transition: color 0.2s;
+  }
+  #empty.drag-over .big { color: var(--accent); }
+
+  #empty .sub {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  /* MASONRY WALL */
+  #wall {
+    margin-top: var(--header-h);
+    padding: 3px;
+    display: none;
+  }
+
+  #columns { column-gap: 3px; }
+
+  /* image / video tile */
+  .tile {
+    break-inside: avoid;
+    margin-bottom: 3px;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    background: var(--surface);
+    display: block;
+  }
+  .tile img, .tile video {
+    width: 100%;
+    height: auto;
+    display: block;
+    transition: transform 0.4s ease;
+  }
+  .tile:hover img, .tile:hover video { transform: scale(1.04); }
+
+  .tile-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.88) 0%, transparent 55%);
+    opacity: 0;
+    transition: opacity 0.2s;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 12px;
+    pointer-events: none;
+  }
+  .tile:hover .tile-overlay { opacity: 1; }
+
+  .tile-name { font-size: 11px; letter-spacing: 0.05em; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tile-meta { font-size: 9px; color: rgba(255,255,255,0.45); letter-spacing: 0.1em; margin-top: 2px; }
+  .tile-path { font-size: 8px; color: var(--accent); letter-spacing: 0.08em; margin-top: 2px; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .vid-badge {
+    position: absolute; top: 8px; left: 8px;
+    background: var(--accent2); color: #fff;
+    font-size: 8px; font-weight: 700; letter-spacing: 0.12em;
+    padding: 2px 7px; text-transform: uppercase; pointer-events: none;
+  }
+
+  /* non-media tile */
+  .tile-file {
+    break-inside: avoid;
+    margin-bottom: 3px;
+    aspect-ratio: 4/3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.15s;
+  }
+  .tile-file:hover { border-color: var(--accent); }
+  .tile-file-icon { font-size: 34px; line-height: 1; }
+  .tile-file-name { font-size: 9px; letter-spacing: 0.06em; color: var(--muted); text-align: center; padding: 0 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .tile-file-path { font-size: 8px; color: var(--accent); letter-spacing: 0.07em; opacity: 0.7; }
+
+  /* folder divider */
+  .folder-divider {
+    break-inside: avoid;
+    column-span: all;
+    margin-bottom: 3px;
+    background: rgba(232,255,0,0.04);
+    border-left: 3px solid var(--accent);
+    padding: 8px 14px;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  /* LIGHTBOX */
+  #lightbox {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.96);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+  }
+  #lightbox.open { display: flex; }
+
+  #lb-img { max-width: 95vw; max-height: 86vh; object-fit: contain; display: none; }
+  #lb-vid { max-width: 95vw; max-height: 86vh; display: none; }
+
+  #lb-close {
+    position: fixed; top: 14px; right: 18px;
+    background: transparent; color: var(--text);
+    border: 1px solid var(--border);
+    font-family: 'Space Mono', monospace;
+    font-size: 18px; cursor: pointer;
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    clip-path: none; padding: 0; transition: all 0.15s;
+  }
+  #lb-close:hover { background: var(--accent2); border-color: var(--accent2); color: #fff; box-shadow: none; transform: none; }
+
+  #lb-nav {
+    position: fixed; top: 50%; transform: translateY(-50%);
+    width: 100%; display: flex; justify-content: space-between;
+    padding: 0 10px; pointer-events: none;
+  }
+  .lb-arrow {
+    pointer-events: all;
+    background: rgba(0,0,0,0.55); border: 1px solid var(--border);
+    color: var(--text); font-size: 22px;
+    width: 46px; height: 46px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; clip-path: none; padding: 0;
+    font-family: 'Space Mono', monospace;
+    transition: all 0.15s;
+  }
+  .lb-arrow:hover { background: var(--accent); color: #000; border-color: var(--accent); box-shadow: none; transform: none; }
+
+  #lb-bar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: rgba(0,0,0,0.82);
+    backdrop-filter: blur(8px);
+    border-top: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  #lb-name { font-size: 12px; letter-spacing: 0.1em; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #lb-meta { font-size: 10px; color: var(--muted); letter-spacing: 0.1em; white-space: nowrap; }
+  #lb-path { font-size: 9px; color: var(--accent); letter-spacing: 0.08em; opacity: 0.8; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #lb-counter { font-size: 10px; color: var(--muted); letter-spacing: 0.1em; white-space: nowrap; margin-left: auto; }
+
+  /* LOADING */
+  #loading {
+    display: none; position: fixed; inset: 0;
+    background: rgba(13,13,13,0.88);
+    z-index: 800; align-items: center; justify-content: center;
+    flex-direction: column; gap: 14px;
+  }
+  #loading.show { display: flex; }
+  #loading .ld-label { font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); }
+  #loading .ld-count { font-family: 'Bebas Neue', sans-serif; font-size: 80px; color: var(--accent); line-height: 1; }
+  #loading .ld-file { font-size: 10px; color: var(--muted); letter-spacing: 0.09em; max-width: 420px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* ── GOON MODE ── */
+  #goon-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: #000;
+    z-index: 3000;
+    overflow: hidden;
+    flex-direction: column;
+  }
+  #goon-overlay.active { display: flex; }
+
+  #goon-grid {
+    flex: 1;
+    background: #000;
+    overflow: hidden;
+  }
+
+  .goon-cell {
+    overflow: hidden;
+    position: relative;
+    background: #111;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .goon-cell img,
+  .goon-cell video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* fade in on every swap */
+  @keyframes goon-fade {
+    from { opacity: 0; transform: scale(1.04); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+  .goon-cell {
+    animation: goon-fade 0.5s ease both;
+  }
+
+  /* HUD bar at bottom */
+  #goon-hud {
+    width: 100%;
+    height: 28px;
+    flex-shrink: 0;
+    background: rgba(0,0,0,0.45);
+    backdrop-filter: blur(6px);
+    border-top: 1px solid rgba(255,60,111,0.12);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 12px;
+    z-index: 3100;
+    font-family: 'Space Mono', monospace;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+  }
+  #goon-hud:hover { opacity: 1; }
+
+  #goon-label {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 13px;
+    color: var(--accent2);
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+    opacity: 0.7;
+  }
+
+  #goon-progress-wrap {
+    flex: 1;
+    height: 2px;
+    background: rgba(255,255,255,0.06);
+    overflow: hidden;
+  }
+
+  #goon-progress-bar {
+    height: 100%;
+    background: rgba(255,60,111,0.6);
+    width: 0%;
+  }
+
+  #goon-timer-wrap {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  #goon-timer-slider {
+    -webkit-appearance: none;
+    width: 60px;
+    height: 2px;
+    background: rgba(255,255,255,0.12);
+    outline: none;
+    cursor: pointer;
+  }
+  #goon-timer-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 8px; height: 8px;
+    background: rgba(255,60,111,0.7);
+    cursor: pointer;
+    border-radius: 50%;
+  }
+  #goon-timer-val {
+    font-size: 8px;
+    color: rgba(255,255,255,0.3);
+    letter-spacing: 0.05em;
+    width: 20px;
+  }
+
+  #goon-info {
+    font-size: 8px;
+    letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.2);
+    white-space: nowrap;
+  }
+  #goon-info span { color: rgba(255,255,255,0.35); }
+
+  #goon-exit {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 3px 7px;
+    background: transparent;
+    color: rgba(255,60,111,0.5);
+    border: 1px solid rgba(255,60,111,0.25);
+    cursor: pointer;
+    clip-path: none;
+    transition: all 0.15s;
+    white-space: nowrap;
+    line-height: 1;
+  }
+  #goon-exit:hover { background: var(--accent2); color: #fff; border-color: var(--accent2); box-shadow: none; transform: none; opacity: 1; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <a href="index.html" style="font-size:10px;letter-spacing:0.2em;color:#333;text-decoration:none;text-transform:uppercase;transition:color 0.15s;white-space:nowrap;flex-shrink:0;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='#333'">← GOONHUB</a>
+  <div class="hbar"></div>
+  <h1>FOLDER VIEWER</h1>
+  <div class="hbar"></div>
+  <div id="stats">
+    <div>FILES <span id="s-files">—</span> &nbsp;·&nbsp; FOLDERS <span id="s-folders">—</span></div>
+    <div>IMAGES <span id="s-images">—</span> &nbsp;·&nbsp; VIDEOS <span id="s-videos">—</span> &nbsp;·&nbsp; OTHER <span id="s-other">—</span></div>
+  </div>
+  <div class="spacer"></div>
+  <div id="filters"></div>
+  <div class="hbar"></div>
+  <div id="col-wrap">
+    COLS <input type="range" id="col-slider" min="1" max="8" value="3"> <span id="col-val">3</span>
+  </div>
+  <button class="open-btn" id="goon-btn" style="background:#ff3c6f;clip-path:polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px));display:none;">⚡ GOON MODE</button>
+  <button class="open-btn" id="open-btn">⊞ OPEN FOLDER</button>
+</div>
+
+<div id="empty">
+  <div class="big">DROP A FOLDER<br>OR OPEN ONE</div>
+  <div class="sub">supports nested subfolders · images · videos · all file types</div>
+</div>
+
+<div id="wall">
+  <div id="columns"></div>
+</div>
+
+<div id="lightbox">
+  <div id="lb-nav">
+    <button class="lb-arrow" id="lb-prev">‹</button>
+    <button class="lb-arrow" id="lb-next">›</button>
+  </div>
+  <img id="lb-img" />
+  <video id="lb-vid" controls></video>
+  <button id="lb-close">✕</button>
+  <div id="lb-bar">
+    <div id="lb-name">—</div>
+    <div id="lb-meta">—</div>
+    <div id="lb-path">—</div>
+    <div id="lb-counter">—</div>
+  </div>
+</div>
+
+<!-- GOON MODE OVERLAY -->
+<div id="goon-overlay">
+  <div id="goon-grid"></div>
+  <div id="goon-hud">
+    <div id="goon-label">⚡</div>
+    <div id="goon-progress-wrap"><div id="goon-progress-bar"></div></div>
+    <div id="goon-timer-wrap">
+      <input type="range" id="goon-timer-slider" min="5" max="30" value="7" step="1">
+      <span id="goon-timer-val">7s</span>
+    </div>
+    <div id="goon-info"><span id="goon-seen">0</span>/<span id="goon-total">0</span></div>
+    <button id="goon-exit">✕</button>
+  </div>
+</div>
+
+<div id="loading">
+  <div class="ld-label">SCANNING FILES</div>
+  <div class="ld-count" id="ld-count">0</div>
+  <div class="ld-file" id="ld-file">—</div>
+</div>
+
+<script>
+const ICONS = { image:'🖼️', video:'🎬', audio:'🎵', pdf:'📄', text:'📝', code:'💾', zip:'📦', font:'🔤', other:'📁' };
+
+function getType(name) {
+  const ext = (name.split('.').pop()||'').toLowerCase();
+  if (['jpg','jpeg','png','gif','webp','avif','bmp','svg','ico','tiff'].includes(ext)) return 'image';
+  if (['mp4','webm','mov','avi','mkv','m4v','wmv'].includes(ext)) return 'video';
+  if (['mp3','wav','ogg','flac','aac','m4a'].includes(ext)) return 'audio';
+  if (ext==='pdf') return 'pdf';
+  if (['txt','md','csv','json','xml','yaml','yml','log'].includes(ext)) return 'text';
+  if (['js','ts','py','html','css','cpp','c','h','java','go','rs','rb','sh','php','swift'].includes(ext)) return 'code';
+  if (['zip','rar','7z','tar','gz','bz2'].includes(ext)) return 'zip';
+  if (['ttf','otf','woff','woff2'].includes(ext)) return 'font';
+  return 'other';
+}
+
+function fmtSize(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+  return (b/1048576).toFixed(1) + ' MB';
+}
+
+let allFiles = [];
+let displayed = [];
+let lbIndex = 0;
+let cols = 3;
+
+// ─── READ FOLDER (File System Access API) ───
+async function readDirHandle(handle, path='', files=[], cnt={n:0}) {
+  for await (const entry of handle.values()) {
+    if (entry.kind === 'file') {
+      const file = await entry.getFile();
+      cnt.n++;
+      document.getElementById('ld-count').textContent = cnt.n;
+      document.getElementById('ld-file').textContent = (path||'/') + '/' + file.name;
+      files.push({ file, path: path||'/', type: getType(file.name) });
+    } else if (entry.kind === 'directory') {
+      await readDirHandle(entry, (path ? path+'/'+entry.name : entry.name), files, cnt);
+    }
+  }
+  return files;
+}
+
+async function openFolder() {
+  try {
+    const dirHandle = await window.showDirectoryPicker({ mode:'read' });
+    showLoading(true);
+    document.getElementById('ld-count').textContent = '0';
+    const raw = await readDirHandle(dirHandle, dirHandle.name);
+    raw.sort((a,b) => a.path.localeCompare(b.path) || a.file.name.localeCompare(b.file.name));
+    raw.forEach(r => r.url = URL.createObjectURL(r.file));
+    allFiles = raw;
+    showLoading(false);
+    showGoonBtn();
+    buildFilters();
+    applyFilter('all');
+  } catch(e) {
+    showLoading(false);
+    if (e.name !== 'AbortError') alert('Error: ' + e.message);
+  }
+}
+
+function showLoading(on) {
+  document.getElementById('loading').classList.toggle('show', on);
+}
+
+// ─── FILTERS ───
+function buildFilters() {
+  const types = new Set(allFiles.map(f=>f.type));
+  const bar = document.getElementById('filters');
+  bar.innerHTML = '';
+
+  const mk = (label, key) => {
+    const b = document.createElement('button');
+    b.className = 'fpill' + (key==='all'?' active':'');
+    const count = key==='all' ? allFiles.length : allFiles.filter(f=>f.type===key).length;
+    b.textContent = `${label} (${count})`;
+    b.onclick = () => {
+      document.querySelectorAll('.fpill').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+      applyFilter(key);
+    };
+    return b;
+  };
+
+  bar.appendChild(mk('ALL', 'all'));
+  ['image','video','audio','pdf','text','code','zip','font','other'].forEach(t => {
+    if (types.has(t)) bar.appendChild(mk(t.toUpperCase(), t));
+  });
+}
+
+function applyFilter(key) {
+  displayed = key==='all' ? [...allFiles] : allFiles.filter(f=>f.type===key);
+  updateStats();
+  renderWall();
+}
+
+function updateStats() {
+  const imgs = allFiles.filter(f=>f.type==='image').length;
+  const vids = allFiles.filter(f=>f.type==='video').length;
+  const folders = new Set(allFiles.map(f=>f.path)).size;
+  document.getElementById('s-files').textContent = allFiles.length;
+  document.getElementById('s-folders').textContent = folders;
+  document.getElementById('s-images').textContent = imgs;
+  document.getElementById('s-videos').textContent = vids;
+  document.getElementById('s-other').textContent = allFiles.length - imgs - vids;
+}
+
+// ─── RENDER ───
+function renderWall() {
+  const wall = document.getElementById('wall');
+  const colEl = document.getElementById('columns');
+  wall.style.display = 'block';
+  document.getElementById('empty').style.display = 'none';
+  colEl.innerHTML = '';
+  colEl.style.columnCount = cols;
+
+  let lastPath = null;
+
+  displayed.forEach((item, idx) => {
+    if (item.path !== lastPath) {
+      const sep = document.createElement('div');
+      sep.className = 'folder-divider';
+      sep.textContent = '📁 ' + item.path;
+      colEl.appendChild(sep);
+      lastPath = item.path;
+    }
+
+    if (item.type === 'image' || item.type === 'video') {
+      const tile = document.createElement('div');
+      tile.className = 'tile';
+
+      if (item.type === 'image') {
+        const img = document.createElement('img');
+        img.src = item.url;
+        img.alt = item.file.name;
+        img.loading = 'lazy';
+        tile.appendChild(img);
+      } else {
+        const vid = document.createElement('video');
+        vid.src = item.url;
+        vid.muted = true;
+        vid.loop = true;
+        vid.playsInline = true;
+        vid.autoplay = true;
+        vid.preload = 'auto';
+        vid.play().catch(()=>{});
+        tile.appendChild(vid);
+        const badge = document.createElement('div');
+        badge.className = 'vid-badge';
+        badge.textContent = '▶ LIVE';
+        tile.appendChild(badge);
+      }
+
+      const ov = document.createElement('div');
+      ov.className = 'tile-overlay';
+      ov.innerHTML = `<div class="tile-name">${item.file.name}</div>
+        <div class="tile-meta">${item.type.toUpperCase()} · ${fmtSize(item.file.size)}</div>
+        <div class="tile-path">${item.path}</div>`;
+      tile.appendChild(ov);
+      tile.addEventListener('click', () => openLightbox(idx));
+      colEl.appendChild(tile);
+
+    } else {
+      const tile = document.createElement('div');
+      tile.className = 'tile-file';
+      tile.innerHTML = `<div class="tile-file-icon">${ICONS[item.type]||'📁'}</div>
+        <div class="tile-file-name">${item.file.name}</div>
+        <div class="tile-file-path">${item.path}</div>`;
+      tile.title = 'Click to download';
+      tile.onclick = () => {
+        const a = document.createElement('a');
+        a.href = item.url; a.download = item.file.name; a.click();
+      };
+      colEl.appendChild(tile);
+    }
+  });
+}
+
+// ─── LIGHTBOX ───
+function openLightbox(idx) {
+  lbIndex = idx;
+  showLbItem();
+  document.getElementById('lightbox').classList.add('open');
+}
+
+function showLbItem() {
+  const item = displayed[lbIndex];
+  const img = document.getElementById('lb-img');
+  const vid = document.getElementById('lb-vid');
+  img.style.display = 'none'; vid.style.display = 'none';
+  vid.pause(); vid.src = ''; img.src = '';
+
+  if (item.type === 'image') { img.src = item.url; img.style.display = 'block'; }
+  else if (item.type === 'video') { vid.src = item.url; vid.style.display = 'block'; vid.play().catch(()=>{}); }
+
+  document.getElementById('lb-name').textContent = item.file.name;
+  document.getElementById('lb-meta').textContent = `${item.type.toUpperCase()} · ${fmtSize(item.file.size)}`;
+  document.getElementById('lb-path').textContent = item.path;
+
+  // count only media for counter
+  const mediaItems = displayed.filter(f=>f.type==='image'||f.type==='video');
+  const mediaIdx = mediaItems.indexOf(item);
+  document.getElementById('lb-counter').textContent = mediaIdx >= 0 ? `${mediaIdx+1} / ${mediaItems.length}` : '';
+}
+
+function closeLb() {
+  const vid = document.getElementById('lb-vid');
+  vid.pause(); vid.src = '';
+  document.getElementById('lb-img').src = '';
+  document.getElementById('lightbox').classList.remove('open');
+}
+
+function lbNav(dir) {
+  let next = lbIndex + dir;
+  while (next >= 0 && next < displayed.length) {
+    const t = displayed[next].type;
+    if (t==='image' || t==='video') { lbIndex = next; showLbItem(); return; }
+    next += dir;
+  }
+}
+
+document.getElementById('lb-close').onclick = closeLb;
+document.getElementById('lb-prev').onclick = () => lbNav(-1);
+document.getElementById('lb-next').onclick = () => lbNav(1);
+document.getElementById('lightbox').addEventListener('click', e => { if (e.target===e.currentTarget) closeLb(); });
+document.addEventListener('keydown', e => {
+  if (!document.getElementById('lightbox').classList.contains('open')) return;
+  if (e.key==='Escape') closeLb();
+  if (e.key==='ArrowLeft') lbNav(-1);
+  if (e.key==='ArrowRight') lbNav(1);
+});
+
+// ─── COLUMN SLIDER ───
+const slider = document.getElementById('col-slider');
+slider.addEventListener('input', () => {
+  cols = parseInt(slider.value);
+  document.getElementById('col-val').textContent = cols;
+  if (displayed.length) renderWall();
+});
+
+// ─── OPEN BUTTON ───
+document.getElementById('open-btn').onclick = openFolder;
+
+// ─── DRAG & DROP ───
+const empty = document.getElementById('empty');
+document.addEventListener('dragenter', e => { e.preventDefault(); empty.classList.add('drag-over'); });
+document.addEventListener('dragover',  e => { e.preventDefault(); });
+document.addEventListener('dragleave', e => { if (!e.relatedTarget || !document.contains(e.relatedTarget)) empty.classList.remove('drag-over'); });
+document.addEventListener('drop', async e => {
+  e.preventDefault();
+  empty.classList.remove('drag-over');
+  const items = [...e.dataTransfer.items];
+  const files = [];
+  showLoading(true);
+  document.getElementById('ld-count').textContent = '0';
+  for (const item of items) {
+    if (item.kind === 'file') {
+      const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
+      if (entry && entry.isDirectory) {
+        await readEntryRecursive(entry, entry.name, files);
+      } else if (entry && entry.isFile) {
+        const file = await new Promise(r => entry.file(r));
+        files.push({ file, path:'/', type: getType(file.name), url: URL.createObjectURL(file) });
+      }
+    }
+  }
+  showLoading(false);
+  if (files.length) {
+    files.sort((a,b) => a.path.localeCompare(b.path) || a.file.name.localeCompare(b.file.name));
+    allFiles = files;
+    showGoonBtn();
+    buildFilters();
+    applyFilter('all');
+  }
+});
+
+function readEntryRecursive(dirEntry, path, files) {
+  return new Promise(resolve => {
+    const reader = dirEntry.createReader();
+    const batch = () => reader.readEntries(async entries => {
+      if (!entries.length) return resolve();
+      for (const entry of entries) {
+        if (entry.isFile) {
+          const file = await new Promise(r => entry.file(r));
+          const n = parseInt(document.getElementById('ld-count').textContent||0)+1;
+          document.getElementById('ld-count').textContent = n;
+          document.getElementById('ld-file').textContent = path+'/'+file.name;
+          files.push({ file, path, type: getType(file.name), url: URL.createObjectURL(file) });
+        } else if (entry.isDirectory) {
+          await readEntryRecursive(entry, path+'/'+entry.name, files);
+        }
+      }
+      batch();
+    });
+    batch();
+  });
+}
+
+window.addEventListener('resize', () => { if (displayed.length) renderWall(); });
+
+// ─── GOON MODE ───
+let GOON_INTERVAL = 7000;
+let goonActive = false;
+let goonTimer = null;
+let goonQueue = [];
+let goonShownAll = [];
+let goonRound = 1;
+let goonSeenCount = 0;
+
+function shuffleArray(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function goonMediaItems() {
+  return allFiles.filter(f => f.type === 'image' || f.type === 'video');
+}
+
+// ── ASPECT RATIO CACHE ──
+// Pre-load natural dimensions for all media items so we can use real aspect ratios.
+const goonAspectCache = new Map(); // url → ratio (w/h)
+
+function preloadAspect(item) {
+  if (goonAspectCache.has(item.url)) return Promise.resolve();
+  return new Promise(resolve => {
+    if (item.type === 'image') {
+      const img = new Image();
+      img.onload = () => { goonAspectCache.set(item.url, img.naturalWidth / img.naturalHeight); resolve(); };
+      img.onerror = () => { goonAspectCache.set(item.url, 16/9); resolve(); };
+      img.src = item.url;
+    } else {
+      const vid = document.createElement('video');
+      vid.preload = 'metadata';
+      vid.onloadedmetadata = () => { goonAspectCache.set(item.url, vid.videoWidth / vid.videoHeight || 16/9); resolve(); };
+      vid.onerror = () => { goonAspectCache.set(item.url, 16/9); resolve(); };
+      vid.src = item.url;
+    }
+  });
+}
+
+// Dequeue next item, reshuffling when exhausted
+function goonDequeue() {
+  if (goonQueue.length === 0) {
+    goonRound++;
+    goonSeenCount = 0;
+    goonQueue = shuffleArray(goonShownAll);
+  }
+  const item = goonQueue.shift();
+  goonSeenCount++;
+  document.getElementById('goon-seen').textContent = Math.min(goonSeenCount, goonShownAll.length);
+  return item;
+}
+
+// ── LAYOUT ENGINE ──
+// Given a set of items with known aspect ratios and the screen dimensions,
+// find the best cols×rows grid that:
+//   1. Fills the full screen (cells stretch to fill, no letterboxing the grid itself)
+//   2. Has at least 2 rows and 2 cols (no single strips)
+//   3. Targets 8 cells, accepts 4–10
+// Cell dimensions = screen / grid — cells stretch to fill (object-fit:cover handles clipping).
+
+function goonBestLayout(items) {
+  const hudH = 28;
+  const gap  = 3;
+  const vw   = window.innerWidth;
+  const vh   = window.innerHeight - hudH;
+  const screenAR = vw / vh;
+
+  // All valid (cols, rows) pairs where cols*rows is in [4..10], min 2 rows, min 2 cols
+  const candidates = [];
+  for (let cols = 2; cols <= 5; cols++) {
+    for (let rows = 2; rows <= 5; rows++) {
+      const n = cols * rows;
+      if (n < 4 || n > 10) continue;
+      candidates.push({ cols, rows, n });
+    }
+  }
+
+  // Score each layout: prefer n=8, penalise aspect mismatch vs screen
+  let best = null, bestScore = -Infinity;
+  for (const { cols, rows, n } of candidates) {
+    if (n > items.length) continue;
+    const cellW = (vw - gap * (cols - 1)) / cols;
+    const cellH = (vh - gap * (rows - 1)) / rows;
+    const gridAR = cellW / cellH * cols / rows; // grid overall AR
+
+    // How close to 8 cells
+    const nScore = 1 - Math.abs(n - 8) / 6;
+    // How well the grid AR matches the screen (filling it)
+    const arScore = 1 - Math.abs(gridAR - screenAR) / screenAR;
+    // Prefer balanced layouts (cols/rows ratio near 1.5 for widescreen)
+    const balScore = 1 - Math.abs((cols / rows) - screenAR) / screenAR;
+
+    const score = nScore * 2 + arScore * 1.5 + balScore * 0.5;
+    if (score > bestScore) { bestScore = score; best = { cols, rows, n }; }
+  }
+
+  // Absolute fallback
+  if (!best) best = { cols: 2, rows: 2, n: 4 };
+  return best;
+}
+
+// Build one media cell element
+function makeGoonCell(item) {
+  const cell = document.createElement('div');
+  cell.className = 'goon-cell';
+  goonFillCell(cell, item);
+  return cell;
+}
+
+function goonFillCell(cell, item) {
+  cell.innerHTML = '';
+  if (item.type === 'image') {
+    const img = document.createElement('img');
+    img.src = item.url;
+    img.loading = 'eager';
+    cell.appendChild(img);
+  } else {
+    const vid = document.createElement('video');
+    vid.src = item.url;
+    vid.muted = true;
+    vid.loop = true;
+    vid.playsInline = true;
+    vid.autoplay = true;
+    vid.play().catch(() => {});
+    cell.appendChild(vid);
+  }
+}
+
+// Rebuild entire grid — full screen, real aspect ratios, aims for 8 cells
+function goonBuildGrid() {
+  const grid = document.getElementById('goon-grid');
+  grid.innerHTML = '';
+
+  const hudH = 28;
+  const gap  = 3;
+  const vw   = window.innerWidth;
+  const vh   = window.innerHeight - hudH;
+
+  // Peek at next N items (don't consume yet) to inform layout
+  const peekCount = Math.min(10, goonShownAll.length);
+  const peek = [];
+  for (let i = 0; i < peekCount; i++) peek.push(goonShownAll[i % goonShownAll.length]);
+
+  const { cols, rows, n } = goonBestLayout(peek);
+
+  // Cell dimensions that fill the FULL screen — no centering gaps
+  const cellW = Math.floor((vw - gap * (cols - 1)) / cols);
+  const cellH = Math.floor((vh - gap * (rows - 1)) / rows);
+
+  // Outer wrapper fills full screen
+  grid.style.display = 'grid';
+  grid.style.gridTemplateColumns = `repeat(${cols}, ${cellW}px)`;
+  grid.style.gridTemplateRows    = `repeat(${rows}, ${cellH}px)`;
+  grid.style.gap    = gap + 'px';
+  grid.style.width  = vw + 'px';
+  grid.style.height = vh + 'px';
+  grid.style.background = '#000';
+  // Fill any sub-pixel remainder by stretching last cell
+  grid.style.gridTemplateColumns = `repeat(${cols - 1}, ${cellW}px) 1fr`;
+  grid.style.gridTemplateRows    = `repeat(${rows - 1}, ${cellH}px) 1fr`;
+
+  // Dequeue n items and fill
+  for (let i = 0; i < n; i++) {
+    const item = goonDequeue();
+    const cell = makeGoonCell(item);
+    grid.appendChild(cell);
+  }
+
+  document.getElementById('goon-total').textContent = goonShownAll.length;
+}
+
+function startGoonProgress() {
+  const bar = document.getElementById('goon-progress-bar');
+  bar.style.transition = 'none';
+  bar.style.width = '0%';
+  // Force reflow then animate
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      bar.style.transition = `width ${GOON_INTERVAL}ms linear`;
+      bar.style.width = '100%';
+    });
+  });
+}
+
+function startGoonMode() {
+  const media = goonMediaItems();
+  if (!media.length) { alert('No images or videos found!'); return; }
+
+  goonActive = true;
+  goonRound = 1;
+  goonSeenCount = 0;
+  goonShownAll = media;
+  goonQueue = shuffleArray(media);
+
+  // Read timer from slider
+  GOON_INTERVAL = parseInt(document.getElementById('goon-timer-slider').value) * 1000;
+
+  document.getElementById('goon-total').textContent = media.length;
+  document.getElementById('goon-seen').textContent = 0;
+  document.getElementById('goon-overlay').classList.add('active');
+  document.body.style.overflow = 'hidden';
+
+  // Pre-warm aspect ratio cache for a sample of items, then build
+  const sample = goonShownAll.slice(0, 20);
+  Promise.all(sample.map(preloadAspect)).then(() => {
+    goonBuildGrid();
+    startGoonProgress();
+  });
+
+  goonTimer = setInterval(() => {
+    goonBuildGrid();
+    startGoonProgress();
+  }, GOON_INTERVAL);
+}
+
+function stopGoonMode() {
+  goonActive = false;
+  clearInterval(goonTimer);
+  goonTimer = null;
+  document.getElementById('goon-overlay').classList.remove('active');
+  document.getElementById('goon-grid').innerHTML = '';
+  document.body.style.overflow = '';
+  const bar = document.getElementById('goon-progress-bar');
+  bar.style.transition = 'none';
+  bar.style.width = '0%';
+}
+
+document.getElementById('goon-btn').onclick = startGoonMode;
+document.getElementById('goon-exit').onclick = stopGoonMode;
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && goonActive) stopGoonMode();
+});
+
+// Timer slider
+const goonSliderEl = document.getElementById('goon-timer-slider');
+const goonTimerValEl = document.getElementById('goon-timer-val');
+goonSliderEl.addEventListener('input', () => {
+  const secs = parseInt(goonSliderEl.value);
+  goonTimerValEl.textContent = secs + 's';
+  GOON_INTERVAL = secs * 1000;
+  // Restart timer with new interval if active
+  if (goonActive) {
+    clearInterval(goonTimer);
+    goonTimer = setInterval(() => {
+      goonBuildGrid();
+      startGoonProgress();
+    }, GOON_INTERVAL);
+    startGoonProgress(); // reset progress bar to new duration
+  }
+});
+
+function showGoonBtn() {
+  document.getElementById('goon-btn').style.display = '';
+}
+
+// ─── PAUSE / RESUME WALL VIDEOS WITH TAB VISIBILITY ───
+document.addEventListener('visibilitychange', () => {
+  const wallVids = document.querySelectorAll('#columns .tile video');
+  if (document.hidden) {
+    wallVids.forEach(v => v.pause());
+  } else {
+    wallVids.forEach(v => v.play().catch(()=>{}));
+  }
+});
+</script>
+</body>
+</html>
