@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GOONHUB</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #080808;
+    --accent: #e8ff00;
+    --accent2: #ff3c6f;
+    --text: #f0f0f0;
+    --muted: #333;
+    --border: #1a1a1a;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  /* Subtle scanlines */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg, transparent, transparent 3px,
+      rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px
+    );
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  /* Faint grid bg */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(232,255,0,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(232,255,0,0.02) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+  }
+
+  .wrap {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 64px;
+  }
+
+  /* Logo */
+  .logo {
+    text-align: center;
+    animation: fadeDown 0.6s ease both;
+  }
+
+  .logo-text {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(72px, 14vw, 160px);
+    letter-spacing: 0.06em;
+    line-height: 0.9;
+    color: var(--text);
+    position: relative;
+  }
+
+  .logo-text span {
+    color: var(--accent);
+  }
+
+  .logo-sub {
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: #333;
+    margin-top: 12px;
+  }
+
+  /* Cards */
+  .cards {
+    display: flex;
+    gap: 3px;
+    animation: fadeUp 0.6s 0.2s ease both;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .card:nth-child(3) { border-color: #1a1a1a; }
+  .card:nth-child(3):hover { border-color: #00e5ff; }
+  .card:nth-child(3)::before { background: #00e5ff; }
+  .card:nth-child(3):hover .card-num { color: #00e5ff; }
+  .card:nth-child(3):hover .card-corner { border-color: transparent #00e5ff transparent transparent; }
+  .card:nth-child(3):hover .card-arrow { color: #00e5ff; }
+
+  .card {
+    width: 280px;
+    border: 1px solid var(--border);
+    background: #0d0d0d;
+    padding: 32px 28px;
+    text-decoration: none;
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s, background 0.2s;
+    cursor: pointer;
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--accent);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .card:hover {
+    border-color: var(--accent);
+    background: #0f0f0f;
+  }
+
+  .card:hover::before { opacity: 0.03; }
+
+  .card:nth-child(2) { border-color: #1a1a1a; }
+  .card:nth-child(2):hover { border-color: var(--accent2); }
+  .card:nth-child(2)::before { background: var(--accent2); }
+
+  .card-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.25em;
+    color: #2a2a2a;
+    position: relative;
+  }
+
+  .card:hover .card-num { color: var(--accent); }
+  .card:nth-child(2):hover .card-num { color: var(--accent2); }
+
+  .card-icon {
+    font-size: 36px;
+    line-height: 1;
+    position: relative;
+  }
+
+  .card-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 32px;
+    letter-spacing: 0.06em;
+    line-height: 1;
+    position: relative;
+  }
+
+  .card-desc {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: #444;
+    line-height: 1.7;
+    position: relative;
+    text-transform: uppercase;
+  }
+
+  .card-arrow {
+    position: relative;
+    margin-top: auto;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: #2a2a2a;
+    text-transform: uppercase;
+    transition: color 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-arrow::after {
+    content: '→';
+    font-size: 14px;
+    transition: transform 0.2s;
+  }
+
+  .card:hover .card-arrow { color: var(--accent); }
+  .card:hover .card-arrow::after { transform: translateX(4px); }
+  .card:nth-child(2):hover .card-arrow { color: var(--accent2); }
+
+  /* Corner accent */
+  .card-corner {
+    position: absolute;
+    top: 0; right: 0;
+    width: 0; height: 0;
+    border-style: solid;
+    border-width: 0 20px 20px 0;
+    border-color: transparent var(--border) transparent transparent;
+    transition: border-color 0.2s;
+  }
+  .card:hover .card-corner { border-color: transparent var(--accent) transparent transparent; }
+  .card:nth-child(2):hover .card-corner { border-color: transparent var(--accent2) transparent transparent; }
+
+  /* Footer */
+  .footer {
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    color: #1e1e1e;
+    text-transform: uppercase;
+    animation: fadeUp 0.6s 0.4s ease both;
+  }
+
+  @keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">
+    <div class="logo-text">GOON<span>HUB</span></div>
+    <div class="logo-sub">local file tools</div>
+  </div>
+
+  <div class="cards">
+    <a class="card" href="folder-viewer.html">
+      <div class="card-corner"></div>
+      <div class="card-num">01</div>
+      <div class="card-icon">⊞</div>
+      <div class="card-title">FOLDER<br>VIEWER</div>
+      <div class="card-desc">Browse any local folder.<br>Images · Videos · Goon Mode.</div>
+      <div class="card-arrow">Open tool</div>
+    </a>
+
+    <a class="card" href="compressor.html">
+      <div class="card-corner"></div>
+      <div class="card-num">02</div>
+      <div class="card-icon">⚙</div>
+      <div class="card-title">VIDEO<br>EDITOR</div>
+      <div class="card-desc">Trim &amp; compress videos.<br>Convert videos to GIF.</div>
+      <div class="card-arrow">Open tool</div>
+    </a>
+
+    <a class="card" href="combiner.html">
+      <div class="card-corner"></div>
+      <div class="card-num">03</div>
+      <div class="card-icon">⊞</div>
+      <div class="card-title">SIDE-BY-SIDE<br>COMBINER</div>
+      <div class="card-desc">Combine two videos or images<br>side by side into one video.</div>
+      <div class="card-arrow">Open tool</div>
+    </a>
+  </div>
+
+  <div class="footer">goonhub · local · no uploads · no tracking</div>
+</div>
+</body>
+</html>

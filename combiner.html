@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GOONHUB · COMBINER</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#080808;--surface:#0d0d0d;--border:#1e1e1e;
+  --accent:#e8ff00;--accent2:#ff3c6f;--text:#f0f0f0;--muted:#333;
+  --hh:52px;
+}
+body{background:var(--bg);color:var(--text);font-family:'Space Mono',monospace;min-height:100vh;display:flex;flex-direction:column;}
+
+/* HEADER */
+#hdr{position:fixed;top:0;left:0;right:0;height:var(--hh);background:rgba(8,8,8,.96);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:16px;padding:0 24px;z-index:200;}
+#hdr a{font-size:10px;letter-spacing:.2em;color:#333;text-decoration:none;text-transform:uppercase;transition:color .15s;white-space:nowrap;}
+#hdr a:hover{color:var(--accent);}
+#hdr h1{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:.12em;}
+#hdr h1 span{color:var(--accent);}
+.hbar{width:1px;height:22px;background:var(--border);}
+
+/* LAYOUT */
+main{margin-top:var(--hh);flex:1;display:flex;flex-direction:column;gap:3px;padding:3px;}
+
+/* TOP — two drop zones side by side */
+#slots{display:grid;grid-template-columns:1fr 1fr;gap:3px;}
+
+.slot{background:var(--surface);border:1px solid var(--border);display:flex;flex-direction:column;position:relative;min-height:260px;}
+.slot-hd{padding:14px 18px 10px;border-bottom:1px solid var(--border);display:flex;align-items:baseline;gap:10px;flex-shrink:0;}
+.slot-title{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:.1em;}
+.slot-sub{font-size:8px;letter-spacing:.14em;color:#333;text-transform:uppercase;}
+.slot-body{flex:1;display:flex;flex-direction:column;padding:16px;}
+
+/* drop zone inside slot */
+.dz{border:1px dashed #1e1e1e;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:28px 16px;cursor:pointer;transition:all .15s;position:relative;flex:1;}
+.dz input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.dz:hover,.dz.drag{border-color:var(--accent);background:rgba(232,255,0,.025);}
+.dz-icon{font-size:26px;line-height:1;}
+.dz-label{font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:.1em;color:#222;transition:color .15s;}
+.dz:hover .dz-label,.dz.drag .dz-label{color:var(--accent);}
+.dz-sub{font-size:8px;letter-spacing:.12em;color:#1a1a1a;text-transform:uppercase;}
+
+/* media preview in slot */
+.slot-media{display:none;flex:1;position:relative;background:#000;min-height:160px;overflow:hidden;align-items:center;justify-content:center;}
+.slot-media img,.slot-media video{width:100%;height:100%;object-fit:cover;display:block;}
+.slot-meta{position:absolute;bottom:0;left:0;right:0;padding:6px 10px;background:rgba(0,0,0,.75);font-size:8px;letter-spacing:.08em;color:#666;display:flex;gap:10px;flex-wrap:wrap;}
+.slot-meta span{color:var(--text);}
+.slot-clear{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.7);border:1px solid #333;color:#666;width:22px;height:22px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:10px;transition:all .12s;z-index:2;}
+.slot-clear:hover{border-color:var(--accent2);color:var(--accent2);}
+
+/* DIVIDER between slots */
+.slot-divider{display:flex;align-items:center;justify-content:center;width:3px;background:var(--border);position:relative;}
+.slot-divider::after{content:'⊕';position:absolute;width:24px;height:24px;background:var(--bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:10px;color:#333;z-index:1;}
+
+/* CONTROLS bar */
+#controls{background:var(--surface);border:1px solid var(--border);padding:18px 22px;display:flex;gap:24px;align-items:flex-end;flex-wrap:wrap;}
+
+.field{display:flex;flex-direction:column;gap:5px;}
+.field label{font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:#333;}
+.field-row{display:flex;gap:8px;align-items:center;}
+.unit{font-size:9px;color:#333;letter-spacing:.06em;white-space:nowrap;}
+
+input[type=number]{font-family:'Space Mono',monospace;background:#0a0a0a;border:1px solid var(--border);color:var(--text);padding:7px 10px;font-size:11px;outline:none;transition:border-color .15s;width:90px;}
+input[type=number]:focus{border-color:var(--accent);}
+select{font-family:'Space Mono',monospace;background:#0a0a0a;border:1px solid var(--border);color:var(--text);padding:7px 10px;font-size:10px;outline:none;cursor:pointer;transition:border-color .15s;}
+select:focus{border-color:var(--accent);}
+
+.btn{font-family:'Space Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:11px 22px;border:none;cursor:pointer;transition:all .1s;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;white-space:nowrap;}
+.btn-primary{background:var(--accent);color:#000;clip-path:polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px));}
+.btn-primary:hover{background:#fff;}
+.btn-primary:disabled{background:#111;color:#333;cursor:not-allowed;clip-path:none;}
+
+/* PREVIEW CANVAS AREA */
+#preview-area{background:var(--surface);border:1px solid var(--border);display:none;flex-direction:column;}
+#preview-area .ph{padding:14px 18px;border-bottom:1px solid var(--border);font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:.1em;display:flex;align-items:center;gap:16px;}
+#preview-area .ph span{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.1em;color:#333;font-weight:400;text-transform:uppercase;}
+#canvas-wrap{display:flex;align-items:center;justify-content:center;padding:16px;background:#000;}
+canvas#preview-canvas{display:block;max-width:100%;}
+
+/* PROGRESS */
+#prog-area{background:var(--surface);border:1px solid var(--border);padding:18px 22px;display:none;flex-direction:column;gap:10px;}
+.prog-lbl{font-size:9px;letter-spacing:.12em;color:#333;text-transform:uppercase;}
+.prog-lbl span{color:var(--text);}
+.prog-bg{height:2px;background:var(--border);overflow:hidden;}
+.prog-bar{height:100%;background:var(--accent);width:0%;transition:width .2s;}
+
+/* DOWNLOAD */
+#dl-area{display:none;padding:18px 22px;background:var(--surface);border:1px solid var(--border);}
+
+.msg{font-size:9px;letter-spacing:.1em;text-transform:uppercase;min-height:14px;}
+.msg.err{color:var(--accent2);}
+.msg.ok{color:var(--accent);}
+</style>
+</head>
+<body>
+
+<div id="hdr">
+  <a href="index.html">← GOONHUB</a>
+  <div class="hbar"></div>
+  <h1>SIDE-BY-SIDE <span>COMBINER</span></h1>
+</div>
+
+<main>
+
+  <!-- TWO SLOTS -->
+  <div id="slots">
+
+    <!-- SLOT A -->
+    <div class="slot" id="slot-a">
+      <div class="slot-hd">
+        <div class="slot-title">LEFT</div>
+        <div class="slot-sub">video or image</div>
+      </div>
+      <div class="slot-body">
+        <div class="dz" id="dz-a">
+          <input type="file" id="file-a" accept="video/*,image/*">
+          <div class="dz-icon">▧</div>
+          <div class="dz-label">DROP FILE HERE</div>
+          <div class="dz-sub">video or image</div>
+        </div>
+        <div class="slot-media" id="media-a">
+          <div class="slot-clear" id="clear-a" onclick="clearSlot('a')">✕</div>
+          <img id="img-a" style="display:none">
+          <video id="vid-a" muted loop playsinline style="display:none"></video>
+          <div class="slot-meta" id="meta-a"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLOT B -->
+    <div class="slot" id="slot-b">
+      <div class="slot-hd">
+        <div class="slot-title">RIGHT</div>
+        <div class="slot-sub">video or image</div>
+      </div>
+      <div class="slot-body">
+        <div class="dz" id="dz-b">
+          <input type="file" id="file-b" accept="video/*,image/*">
+          <div class="dz-icon">▨</div>
+          <div class="dz-label">DROP FILE HERE</div>
+          <div class="dz-sub">video or image</div>
+        </div>
+        <div class="slot-media" id="media-b">
+          <div class="slot-clear" id="clear-b" onclick="clearSlot('b')">✕</div>
+          <img id="img-b" style="display:none">
+          <video id="vid-b" muted loop playsinline style="display:none"></video>
+          <div class="slot-meta" id="meta-b"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CONTROLS -->
+  <div id="controls">
+
+    <div class="field">
+      <label>Output duration</label>
+      <div class="field-row">
+        <input type="number" id="out-dur" value="10" min="1" max="30" step="0.1">
+        <span class="unit">sec (max 30)</span>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Output height</label>
+      <div class="field-row">
+        <input type="number" id="out-h" value="720" min="100" max="2160" step="2">
+        <span class="unit">px</span>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Frame rate</label>
+      <div class="field-row">
+        <select id="out-fps">
+          <option value="24">24 fps</option>
+          <option value="30" selected>30 fps</option>
+          <option value="60">60 fps</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Gap between</label>
+      <div class="field-row">
+        <input type="number" id="out-gap" value="4" min="0" max="100" step="1">
+        <span class="unit">px</span>
+      </div>
+    </div>
+
+    <div style="margin-left:auto;display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
+      <div class="msg" id="main-msg" style="align-self:center"></div>
+      <button class="btn btn-primary" id="preview-btn" onclick="renderPreview()" disabled>PREVIEW FRAME</button>
+      <button class="btn btn-primary" id="render-btn" onclick="startRender()" disabled>RENDER &amp; COMBINE</button>
+    </div>
+
+  </div>
+
+  <!-- LIVE PREVIEW -->
+  <div id="preview-area">
+    <div class="ph">PREVIEW <span id="preview-info"></span></div>
+    <div id="canvas-wrap">
+      <canvas id="preview-canvas"></canvas>
+    </div>
+  </div>
+
+  <!-- PROGRESS -->
+  <div id="prog-area">
+    <div class="prog-lbl">Rendering… <span id="prog-txt">0%</span> &nbsp;·&nbsp; <span id="prog-frame">frame 0 / 0</span></div>
+    <div class="prog-bg"><div class="prog-bar" id="prog-bar"></div></div>
+    <div class="prog-lbl" id="prog-note" style="color:#222">Processes in real time — larger outputs take longer</div>
+  </div>
+
+  <!-- DOWNLOAD -->
+  <div id="dl-area">
+    <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
+      <div style="flex:1;display:flex;flex-direction:column;gap:4px;">
+        <div class="prog-lbl">Output ready</div>
+        <div id="dl-info" style="font-size:11px;color:var(--text);letter-spacing:.06em;"></div>
+      </div>
+      <a class="btn btn-primary" id="dl-btn">⬇ DOWNLOAD VIDEO</a>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ─── STATE ───
+const state = { a: null, b: null }; // { file, type:'video'|'image', url, w, h, dur }
+
+// ─── UTILS ───
+function fmtBytes(b){
+  if(b<1048576) return (b/1024).toFixed(1)+'KB';
+  return (b/1048576).toFixed(2)+'MB';
+}
+function fmtSec(s){
+  const m=Math.floor(s/60), sc=(s%60).toFixed(1);
+  return m+':'+(parseFloat(sc)<10?'0':'')+sc;
+}
+function setMsg(txt, err=false){
+  const el=document.getElementById('main-msg');
+  el.textContent=txt;
+  el.className='msg'+(err?' err':txt?' ok':'');
+}
+function checkReady(){
+  const ok = state.a && state.b;
+  document.getElementById('preview-btn').disabled = !ok;
+  document.getElementById('render-btn').disabled = !ok;
+  if(ok){
+    updateDurationControl();
+  }
+}
+
+// ─── DROPZONES ───
+['a','b'].forEach(side => {
+  const dz = document.getElementById('dz-'+side);
+  const inp = document.getElementById('file-'+side);
+  inp.onchange = e => { if(e.target.files[0]) loadSlot(side, e.target.files[0]); };
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault(); dz.classList.remove('drag');
+    const f = e.dataTransfer.files[0];
+    if(f) loadSlot(side, f);
+  });
+});
+
+function loadSlot(side, file) {
+  const isVideo = file.type.startsWith('video/');
+  const isImage = file.type.startsWith('image/');
+  if(!isVideo && !isImage){ setMsg('Only video or image files supported', true); return; }
+
+  const url = URL.createObjectURL(file);
+  const type = isVideo ? 'video' : 'image';
+
+  if(type === 'image'){
+    const img = new Image();
+    img.onload = () => {
+      state[side] = { file, type, url, w: img.naturalWidth, h: img.naturalHeight, dur: null };
+      showSlot(side);
+    };
+    img.src = url;
+  } else {
+    const vid = document.createElement('video');
+    vid.onloadedmetadata = () => {
+      state[side] = { file, type, url, w: vid.videoWidth, h: vid.videoHeight, dur: vid.duration };
+      showSlot(side);
+    };
+    vid.src = url;
+  }
+}
+
+function showSlot(side) {
+  const s = state[side];
+  const dzEl = document.getElementById('dz-'+side);
+  const mediaEl = document.getElementById('media-'+side);
+  const imgEl = document.getElementById('img-'+side);
+  const vidEl = document.getElementById('vid-'+side);
+  const metaEl = document.getElementById('meta-'+side);
+
+  dzEl.style.display = 'none';
+  mediaEl.style.display = 'flex';
+
+  if(s.type === 'image'){
+    imgEl.src = s.url;
+    imgEl.style.display = 'block';
+    vidEl.style.display = 'none';
+  } else {
+    vidEl.src = s.url;
+    vidEl.style.display = 'block';
+    vidEl.play().catch(()=>{});
+    imgEl.style.display = 'none';
+  }
+
+  metaEl.innerHTML = `<span>${s.file.name}</span> <span>${s.w}×${s.h}</span> <span>${fmtBytes(s.file.size)}</span>${s.dur ? ' <span>'+fmtSec(s.dur)+'</span>' : ''}`;
+  checkReady();
+}
+
+function clearSlot(side) {
+  state[side] = null;
+  document.getElementById('dz-'+side).style.display = '';
+  document.getElementById('media-'+side).style.display = 'none';
+  document.getElementById('img-'+side).src = '';
+  const v = document.getElementById('vid-'+side);
+  v.pause(); v.src = '';
+  document.getElementById('preview-btn').disabled = true;
+  document.getElementById('render-btn').disabled = true;
+  setMsg('');
+}
+
+// ─── CANVAS HELPERS ───
+function getSettings(){
+  const outH = parseInt(document.getElementById('out-h').value) || 720;
+  const outDur = parseFloat(document.getElementById('out-dur').value) || 10;
+  const fps = parseInt(document.getElementById('out-fps').value) || 30;
+  const gap = parseInt(document.getElementById('out-gap').value) || 0;
+  return { outH, outDur, fps, gap };
+}
+
+// Each side gets exactly half the canvas width (minus half the gap).
+// Content is cover-cropped: scaled up so it fills the cell, cropped from center.
+function calcLayout(outH, gap){
+  const wA = Math.floor((outH * 16 / 9 - gap) / 2); // default 16:9 half-width
+  const wB = wA;
+  const totalW = wA + gap + wB;
+  return { wA, wB, totalW };
+}
+
+// Cover-draw: fill destW×destH with source el, cropped from center (no empty space ever)
+function drawCover(ctx, el, srcW, srcH, destX, destY, destW, destH){
+  const srcAR = srcW / srcH;
+  const destAR = destW / destH;
+  let sx, sy, sw, sh;
+  if(srcAR > destAR){
+    // source is wider than dest → crop sides
+    sh = srcH;
+    sw = srcH * destAR;
+    sx = (srcW - sw) / 2;
+    sy = 0;
+  } else {
+    // source is taller than dest → crop top/bottom
+    sw = srcW;
+    sh = srcW / destAR;
+    sx = 0;
+    sy = (srcH - sh) / 2;
+  }
+  ctx.drawImage(el, sx, sy, sw, sh, destX, destY, destW, destH);
+}
+
+// Draw one composite frame — both sides always fill their half completely
+function drawFrame(ctx, t, outH, gap, wA, wB, totalW, elA, elB){
+  const sA = state.a, sB = state.b;
+  drawCover(ctx, elA, sA.w, sA.h, 0, 0, wA, outH);
+  if(gap > 0){
+    ctx.fillStyle = '#000';
+    ctx.fillRect(wA, 0, gap, outH);
+  }
+  drawCover(ctx, elB, sB.w, sB.h, wA + gap, 0, wB, outH);
+}
+
+// ─── DURATION CONTROL ───
+// Called whenever a slot loads — update the duration input min/max
+function updateDurationControl(){
+  const durInput = document.getElementById('out-dur');
+  const sA = state.a, sB = state.b;
+
+  // Collect durations of video files only
+  const durs = [sA, sB]
+    .filter(s => s && s.type === 'video' && s.dur)
+    .map(s => s.dur);
+
+  if(durs.length === 0){
+    // Only images — no real constraint
+    durInput.min = 1;
+    durInput.max = 30;
+    if(parseFloat(durInput.value) < 1) durInput.value = 5;
+    return;
+  }
+
+  // Min = shortest video duration (can't go longer than shortest without looping weirdly)
+  // Max = 30s hard cap
+  const minDur = Math.min(...durs);
+  const maxDur = 30;
+
+  durInput.min = 1;
+  durInput.max = maxDur;
+
+  // Auto-set to the shorter of the two (or just the one if only one video)
+  const suggested = Math.min(parseFloat(minDur.toFixed(1)), maxDur);
+  durInput.value = suggested.toFixed(1);
+  durInput.title = `Min: 1s · Max: 30s · Shortest video: ${minDur.toFixed(1)}s`;
+  setMsg(`Duration set to ${suggested.toFixed(1)}s (shortest source). Max 30s.`);
+}
+
+// ─── PREVIEW FRAME ───
+async function renderPreview(){
+  const { outH, outDur, fps, gap } = getSettings();
+  const { wA, wB, totalW } = calcLayout(outH, gap);
+
+  const canvas = document.getElementById('preview-canvas');
+  canvas.width = totalW; canvas.height = outH;
+  const ctx = canvas.getContext('2d');
+
+  const t = outDur / 2;
+  const [elA, elB] = await Promise.all([seekMediaEl('a', t), seekMediaEl('b', t)]);
+  drawFrame(ctx, t, outH, gap, wA, wB, totalW, elA, elB);
+
+  document.getElementById('preview-area').style.display = 'flex';
+  document.getElementById('preview-info').textContent = `${totalW}×${outH} · ${fmtSec(outDur)} · ${fps}fps`;
+  setMsg('Preview at t='+fmtSec(t));
+}
+
+async function seekMediaEl(side, t){
+  const s = state[side];
+  if(s.type === 'image'){
+    const img = new Image();
+    img.src = s.url;
+    await new Promise(r => { if(img.complete) r(); else img.onload = r; });
+    return img;
+  } else {
+    const vid = document.getElementById('vid-'+side);
+    const ct = s.dur > 0 ? Math.min(t, s.dur - 0.05) : 0;
+    vid.currentTime = ct;
+    await new Promise(r => { vid.onseeked = r; });
+    return vid;
+  }
+}
+
+// ─── WEBM WRITER ───
+// Writes a proper WebM file with correct timestamps so playback speed is accurate.
+// Each frame is encoded as a JPEG image track. No MediaRecorder, no speed issues.
+
+function numToVINT(n){
+  // Variable-length integer encoding for WebM/EBML
+  if(n < 0x7f){ return [n | 0x80]; }
+  if(n < 0x3fff){ return [(n >> 8) | 0x40, n & 0xff]; }
+  if(n < 0x1fffff){ return [(n >> 16) | 0x20, (n >> 8) & 0xff, n & 0xff]; }
+  if(n < 0x0fffffff){ return [(n >> 24) | 0x10, (n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff]; }
+  throw new Error('VINT too large');
+}
+
+function ebmlNum(n, width){
+  const b = [];
+  for(let i = width - 1; i >= 0; i--) b.push((n >> (i*8)) & 0xff);
+  return b;
+}
+
+function ebmlElement(id, data){
+  const idBytes = id; // already array
+  const size = numToVINT(data.length);
+  return [...idBytes, ...size, ...data];
+}
+
+function flatten(arr){
+  const out = [];
+  function rec(a){ for(const x of a){ if(Array.isArray(x)) rec(x); else out.push(x); } }
+  rec(arr);
+  return out;
+}
+
+function buildWebM(frameBlobs, fps, width, height){
+  const frameMs = Math.round(1000 / fps);  // ms per frame
+  const totalDurMs = frameBlobs.length * frameMs;
+
+  // EBML IDs
+  const EBML        = [0x1a, 0x45, 0xdf, 0xa3];
+  const EBMLVersion = [0x42, 0x86];
+  const EBMLReadVersion = [0x42, 0xf7];
+  const EBMLMaxIDLen = [0x42, 0xf2];
+  const EBMLMaxSizeLen = [0x42, 0xf3];
+  const DocType  = [0x42, 0x82];
+  const DocTypeVersion = [0x42, 0x87];
+  const DocTypeReadVersion = [0x42, 0x85];
+
+  const Segment       = [0x18, 0x53, 0x80, 0x67];
+  const Info          = [0x15, 0x49, 0xa9, 0x66];
+  const TimecodeScale = [0x2a, 0xd7, 0xb1];
+  const MuxingApp     = [0x4d, 0x80];
+  const WritingApp    = [0x57, 0x41];
+  const Duration      = [0x44, 0x89];
+  const Tracks        = [0x16, 0x54, 0xae, 0x6b];
+  const TrackEntry    = [0xae];
+  const TrackNumber   = [0xd7];
+  const TrackUID      = [0x73, 0xc5];
+  const TrackType     = [0x83];
+  const FlagLacing    = [0x9c];
+  const CodecID       = [0x86];
+  const Video         = [0xe0];
+  const PixelWidth    = [0xb0];
+  const PixelHeight   = [0xba];
+  const Cluster       = [0x1f, 0x43, 0xb6, 0x75];
+  const Timecode      = [0xe7];
+  const SimpleBlock   = [0xa3];
+
+  function strBytes(s){ return Array.from(s).map(c => c.charCodeAt(0)); }
+  function uint8(n){ return [n & 0xff]; }
+  function uint16(n){ return [(n>>8)&0xff, n&0xff]; }
+  function uint24(n){ return [(n>>16)&0xff, (n>>8)&0xff, n&0xff]; }
+  function uint32(n){ return [(n>>24)&0xff,(n>>16)&0xff,(n>>8)&0xff,n&0xff]; }
+  // Float64 for duration
+  function float64(v){
+    const buf = new ArrayBuffer(8);
+    new DataView(buf).setFloat64(0, v, false);
+    return Array.from(new Uint8Array(buf));
+  }
+
+  const ebmlHeader = ebmlElement(EBML, flatten([
+    ebmlElement(EBMLVersion,        [0x01]),
+    ebmlElement(EBMLReadVersion,    [0x01]),
+    ebmlElement(EBMLMaxIDLen,       [0x04]),
+    ebmlElement(EBMLMaxSizeLen,     [0x08]),
+    ebmlElement(DocType,            strBytes('webm')),
+    ebmlElement(DocTypeVersion,     [0x04]),
+    ebmlElement(DocTypeReadVersion, [0x02]),
+  ]));
+
+  const infoEl = ebmlElement(Info, flatten([
+    ebmlElement(TimecodeScale, uint24(1000000)), // 1ms per tick
+    ebmlElement(MuxingApp,     strBytes('goonhub')),
+    ebmlElement(WritingApp,    strBytes('goonhub')),
+    ebmlElement(Duration,      float64(totalDurMs)),
+  ]));
+
+  const trackVideoEl = ebmlElement(Video, flatten([
+    ebmlElement(PixelWidth,  uint16(width)),
+    ebmlElement(PixelHeight, uint16(height)),
+  ]));
+
+  const trackEntry = ebmlElement(TrackEntry, flatten([
+    ebmlElement(TrackNumber, [0x01]),
+    ebmlElement(TrackUID,    [0x01]),
+    ebmlElement(TrackType,   [0x01]),    // video
+    ebmlElement(FlagLacing,  [0x00]),
+    ebmlElement(CodecID,     strBytes('V_MJPEG')),
+    trackVideoEl,
+  ]));
+
+  const tracksEl = ebmlElement(Tracks, flatten([trackEntry]));
+
+  // Build clusters — one cluster per second (or per N frames)
+  const FRAMES_PER_CLUSTER = fps; // 1 cluster = 1 second
+  const clusters = [];
+
+  for(let ci = 0; ci * FRAMES_PER_CLUSTER < frameBlobs.length; ci++){
+    const clusterStart = ci * FRAMES_PER_CLUSTER;
+    const clusterStartMs = clusterStart * frameMs;
+    const clusterFrames = frameBlobs.slice(clusterStart, clusterStart + FRAMES_PER_CLUSTER);
+
+    const blocks = clusterFrames.map((blob, fi) => {
+      const frameData = Array.from(new Uint8Array(blob));
+      const relTime = fi * frameMs; // ms relative to cluster timecode
+      // SimpleBlock header: track num (VINT), timecode (int16 BE), flags
+      const header = [...numToVINT(1), (relTime >> 8) & 0xff, relTime & 0xff, 0x80];
+      const blockData = [...header, ...frameData];
+      return ebmlElement(SimpleBlock, blockData);
+    });
+
+    const cluster = ebmlElement(Cluster, flatten([
+      ebmlElement(Timecode, uint32(clusterStartMs)),
+      ...blocks,
+    ]));
+    clusters.push(cluster);
+  }
+
+  const segmentContent = flatten([infoEl, tracksEl, ...clusters]);
+  // Use unknown size for segment (0x01 + 7 * 0xff)
+  const segmentBytes = [...Segment, 0x01, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, ...segmentContent];
+
+  const allBytes = flatten([ebmlHeader, segmentBytes]);
+  return new Uint8Array(allBytes);
+}
+
+// ─── RENDER ───
+let rendering = false;
+
+async function startRender(){
+  if(rendering) return;
+  rendering = true;
+
+  const { outH, outDur, fps, gap } = getSettings();
+  const { wA, wB, totalW } = calcLayout(outH, gap);
+  const totalFrames = Math.round(outDur * fps);
+
+  document.getElementById('dl-area').style.display = 'none';
+  const progArea = document.getElementById('prog-area');
+  progArea.style.display = 'flex';
+  document.getElementById('render-btn').disabled = true;
+  document.getElementById('preview-btn').disabled = true;
+
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = totalW; canvas.height = outH;
+    const ctx = canvas.getContext('2d');
+
+    // Capture each frame as a JPEG blob — exact timestamp control
+    const frameBlobs = [];
+
+    for(let f = 0; f < totalFrames; f++){
+      const t = f / fps;
+
+      const [elA, elB] = await Promise.all([
+        seekLooped('a', t),
+        seekLooped('b', t)
+      ]);
+
+      drawFrame(ctx, t, outH, gap, wA, wB, totalW, elA, elB);
+
+      // Encode frame as JPEG
+      const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.92));
+      const arr = new Uint8Array(await blob.arrayBuffer());
+      frameBlobs.push(arr);
+
+      const pct = Math.round((f + 1) / totalFrames * 100);
+      document.getElementById('prog-bar').style.width = pct + '%';
+      document.getElementById('prog-txt').textContent = pct + '%';
+      document.getElementById('prog-frame').textContent = `frame ${f+1} / ${totalFrames}`;
+
+      if(f % 3 === 0) await new Promise(r => setTimeout(r, 0));
+    }
+
+    document.getElementById('prog-txt').textContent = 'Writing WebM…';
+    await new Promise(r => setTimeout(r, 0));
+
+    const webmBytes = buildWebM(frameBlobs, fps, totalW, outH);
+    const blob = new Blob([webmBytes], { type: 'video/webm' });
+
+    progArea.style.display = 'none';
+    const dlArea = document.getElementById('dl-area');
+    dlArea.style.display = 'block';
+    document.getElementById('dl-info').textContent =
+      `${totalW}×${outH} · ${fmtSec(outDur)} · ${fps}fps · ${fmtBytes(blob.size)}`;
+    const dlBtn = document.getElementById('dl-btn');
+    dlBtn.href = URL.createObjectURL(blob);
+    dlBtn.download = 'combined.webm';
+    setMsg('Done! ' + fmtBytes(blob.size));
+
+  } catch(err){
+    progArea.style.display = 'none';
+    setMsg('Error: ' + err.message, true);
+    console.error(err);
+  }
+
+  rendering = false;
+  document.getElementById('render-btn').disabled = false;
+  document.getElementById('preview-btn').disabled = false;
+}
+
+async function seekLooped(side, t){
+  const s = state[side];
+  if(s.type === 'image'){
+    const img = new Image();
+    img.src = s.url;
+    if(!img.complete) await new Promise(r => { img.onload = r; });
+    return img;
+  } else {
+    const v = document.getElementById('vid-'+side);
+    const loopT = s.dur > 0 ? t % s.dur : 0;
+    v.currentTime = loopT;
+    await new Promise(r => { v.onseeked = r; });
+    return v;
+  }
+}
+</script>
+</body>
+</html>
